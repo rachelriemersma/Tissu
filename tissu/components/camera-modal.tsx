@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
-    borderRadius: 2,
+    borderRadius: 0,
   },
   permissionButtonText: {
     fontFamily: FontFamily.sansMedium,

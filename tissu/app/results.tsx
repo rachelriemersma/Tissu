@@ -87,11 +87,13 @@ export default function ResultsScreen() {
             <Feather name="arrow-left" size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleHeart} style={styles.iconBtn}>
-            <Feather
-              name={hearted ? 'heart' : 'heart'}
-              size={22}
-              color={hearted ? Colors.heart : Colors.textSecondary}
-            />
+            {hearted ? (
+              <View style={styles.heartFilled}>
+                <Feather name="heart" size={22} color={Colors.heart} />
+              </View>
+            ) : (
+              <Feather name="heart" size={22} color={Colors.textSecondary} />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -244,6 +246,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   iconBtn: { padding: Spacing.sm },
+  heartFilled: { opacity: 1 },
   heroImage: {
     width: '100%',
     height: 280,

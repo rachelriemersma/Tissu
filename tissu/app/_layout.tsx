@@ -19,6 +19,7 @@ import {
   useFonts as useDMSans,
 } from '@expo-google-fonts/dm-sans';
 import { Colors } from '@/constants/theme';
+import { ScanProvider } from '@/lib/scan-context';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -53,16 +54,18 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.background }}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen name="auth" />
-        <Stack.Screen name="results" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="learn/[slug]" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="explore/[id]" options={{ animation: 'slide_from_right' }} />
-      </Stack>
-      <StatusBar style="dark" backgroundColor={Colors.background} />
-    </View>
+    <ScanProvider>
+      <View style={{ flex: 1, backgroundColor: Colors.background }}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="onboarding" />
+          <Stack.Screen name="auth" />
+          <Stack.Screen name="results" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="learn/[slug]" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="explore/[id]" options={{ animation: 'slide_from_right' }} />
+        </Stack>
+        <StatusBar style="dark" backgroundColor={Colors.background} />
+      </View>
+    </ScanProvider>
   );
 }

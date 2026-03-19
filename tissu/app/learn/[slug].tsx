@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sans,
     fontSize: FontSize.base,
     color: Colors.textSecondary,
-    lineHeight: 26,
+    lineHeight: 24,
     marginBottom: Spacing.md,
   },
   chartSection: {

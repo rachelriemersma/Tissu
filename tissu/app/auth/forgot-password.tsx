@@ -29,7 +29,7 @@ export default function ForgotPasswordScreen() {
     } else {
       Alert.alert(
         'Email sent',
-        'If an account exists for ' + email.trim() + ', you'll receive a password reset link shortly.',
+        'If an account exists for ' + email.trim() + ", you'll receive a password reset link shortly.",
         [{ text: 'OK', onPress: () => router.back() }]
       );
     }
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 2,
+    borderRadius: 0,
   },
   ctaText: {
     fontFamily: FontFamily.sansMedium,

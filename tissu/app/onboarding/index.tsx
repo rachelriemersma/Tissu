@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 2,
+    borderRadius: 0,
   },
   ctaPrimaryText: {
     fontFamily: FontFamily.sansMedium,

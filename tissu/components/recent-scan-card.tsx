@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { ScanRecord } from '@/lib/supabase';
 import { useScan } from '@/lib/scan-context';
@@ -32,7 +33,7 @@ export default function RecentScanCard({ scan }: Props) {
         <Image source={{ uri: result.imageUrl }} style={styles.image} />
       ) : (
         <View style={styles.imagePlaceholder}>
-          <Text style={styles.placeholderText}>🏷</Text>
+          <Feather name="tag" size={24} color={Colors.textSecondary} />
         </View>
       )}
       <View style={styles.info}>
@@ -62,9 +63,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  placeholderText: {
-    fontSize: 28,
   },
   info: {
     padding: Spacing.sm,
