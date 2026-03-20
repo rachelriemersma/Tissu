@@ -1,9 +1,24 @@
 import { AnalysisResult } from './supabase';
 
-const ANTHROPIC_API_KEY = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY!;
+const ANTHROPIC_API_KEY = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
 const MODEL = 'claude-sonnet-4-20250514';
 
 async function callClaude(messages: object[], system?: string): Promise<string> {
+  console.log('[claude] API key present:', !!ANTHROPIC_API_KEY, 'length:', ANTHROPIC_API_KEY?.length ?? 0);
+
+  if (!ANTHROPIC_API_KEY) {
+    throw new Error('Missing EXPO_PUBLIC_ANTHROPIC_API_KEY — check .env file');
+  }
+
+  const body = {
+    model: MODEL,
+    max_tokens: 2048,
+    system,
+    messages,
+  };
+
+  console.log('[claude] Sending request to Claude API, model:', MODEL);
+
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -11,20 +26,19 @@ async function callClaude(messages: object[], system?: string): Promise<string> 
       'x-api-key': ANTHROPIC_API_KEY,
       'anthropic-version': '2023-06-01',
     },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 2048,
-      system,
-      messages,
-    }),
+    body: JSON.stringify(body),
   });
+
+  console.log('[claude] Response status:', response.status);
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`Claude API error: ${err}`);
+    console.error('[claude] API error response:', err);
+    throw new Error(`Claude API error (${response.status}): ${err}`);
   }
 
   const data = await response.json();
+  console.log('[claude] Response received, content blocks:', data.content?.length);
   return data.content[0].text;
 }
 
@@ -36,9 +50,16 @@ function parseJSON(text: string): object {
 }
 
 export async function analyzeLabelImage(base64Image: string): Promise<AnalysisResult> {
+  console.log('[analyzeLabelImage] Starting, base64 length:', base64Image?.length ?? 0);
+
+  if (!base64Image || base64Image.length === 0) {
+    throw new Error('Empty base64 image data — camera capture may have failed');
+  }
+
   // Step 1: Extract raw data from label
   const extractPrompt = `This is a photo of a clothing care label. Extract only the fiber/textile composition and percentages, country of origin, care instructions, and manufacturer RN number if present. Return as JSON: { "fibers": [{"name": string, "percentage": number}], "country": string, "care": [string], "rn": string }. If any field is not visible, return null for that field.`;
 
+  console.log('[analyzeLabelImage] Step 1: Sending image to Claude for extraction...');
   const extractText = await callClaude([
     {
       role: 'user',
@@ -56,12 +77,15 @@ export async function analyzeLabelImage(base64Image: string): Promise<AnalysisRe
     },
   ]);
 
+  console.log('[analyzeLabelImage] Step 1 raw response:', extractText.substring(0, 200));
   const extracted = parseJSON(extractText) as {
     fibers: { name: string; percentage: number }[];
     country: string;
     care: string[];
     rn: string;
   };
+
+  console.log('[analyzeLabelImage] Extracted data:', JSON.stringify(extracted));
 
   // Step 2: Analyze the extracted data
   const analyzePrompt = `Given this clothing fiber composition: ${JSON.stringify(extracted)}, provide: 1) A plain-language description of each fiber and how it feels/behaves. 2) A durability score out of 100 with a 2-3 sentence explanation and 2-3 tags (e.g. "PILLING RISK · MEDIUM"). 3) A sustainability score out of 100 with a 2-3 sentence explanation and 2-3 tags. Return as JSON: { "fiberDescriptions": [{"name": string, "description": string}], "durability": {"score": number, "summary": string, "tags": [string]}, "sustainability": {"score": number, "summary": string, "tags": [string]} }`;

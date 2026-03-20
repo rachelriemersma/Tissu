@@ -15,7 +15,7 @@ import { useState, useRef } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Feather } from '@expo/vector-icons';
 import { Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { analyzeLabelImage, analyzeProductUrl } from '@/lib/claude';
@@ -54,14 +54,20 @@ export default function SearchScreen() {
     setLoadingMessage('reading the label...');
     setLoading(true);
     try {
+      console.log('[search] Converting image to base64, uri:', uri);
       const base64 = await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
+      console.log('[search] Base64 conversion done, length:', base64?.length ?? 0);
+
       const result = await analyzeLabelImage(base64);
+      console.log('[search] Analysis complete, fibers:', result.fibers?.length);
       setCurrentResult(result, 'label');
       router.push('/results');
-    } catch (e) {
-      Alert.alert('Error', 'Could not read the label. Please try again with a clearer photo.');
+    } catch (e: any) {
+      console.error('[search] Label scan failed:', e?.message ?? e);
+      console.error('[search] Full error:', e);
+      Alert.alert('Error', e?.message ?? 'Could not read the label. Please try again with a clearer photo.');
     } finally {
       setLoading(false);
     }
