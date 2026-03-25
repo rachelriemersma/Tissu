@@ -1,50 +1,128 @@
-# Welcome to your Expo app 👋
+# Tissu
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Tissu is a mobile app that helps you understand what your clothes are made of. Scan a garment's care label with your camera or paste a product URL, and Tissu breaks down the fiber composition, durability, and sustainability of the fabric using AI-powered analysis (Claude vision API).
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Label scanning** — Point your camera at a clothing label to instantly analyze fiber content
+- **URL analysis** — Paste a product link to pull composition data from online listings
+- **Fiber breakdown** — Visual bar chart of the fiber blend with descriptions of each material
+- **Durability & sustainability scores** — AI-generated ratings with summary tags
+- **Scan history** — All past scans saved to your account
+- **Wishlist** — Heart items from results or the Explore feed to save them
+- **Explore** — Curated editorial picks and product collections
+- **Learn** — Educational articles about fabrics and materials
+- **Profile** — Editable profile with display name, username, bio, and avatar
+
+## Tech stack
+
+- **Framework**: React Native + Expo (SDK 54) with Expo Router (file-based routing)
+- **Language**: TypeScript
+- **Backend**: Supabase (auth, Postgres database, storage)
+- **AI**: Anthropic Claude API (vision for label scanning, text for URL analysis)
+- **Fonts**: Cormorant Garamond (serif) + DM Sans (sans-serif)
+
+## Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18+)
+- [Expo CLI](https://docs.expo.dev/get-started/installation/) — installed automatically via npx
+- A [Supabase](https://supabase.com/) project
+- An [Anthropic](https://console.anthropic.com/) API key
+
+## Getting started
+
+1. **Clone the repo and navigate into the project**
+
+   ```bash
+   cd tissu
+   ```
+
+2. **Install dependencies**
 
    ```bash
    npm install
    ```
 
-2. Start the app
+3. **Set up environment variables**
+
+   Create a `.env` file in the `tissu/` directory (or edit the existing one):
+
+   ```
+   EXPO_PUBLIC_ANTHROPIC_API_KEY=your_anthropic_api_key
+   EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+4. **Set up Supabase tables**
+
+   Run the following SQL in your Supabase SQL editor:
+
+   ```sql
+   -- Scans table
+   create table if not exists scans (
+     id uuid default gen_random_uuid() primary key,
+     user_id uuid references auth.users(id) on delete cascade not null,
+     type text not null,
+     result_json jsonb not null,
+     created_at timestamptz default now()
+   );
+   alter table scans enable row level security;
+   create policy "Users can manage own scans" on scans
+     for all using (auth.uid() = user_id);
+
+   -- Wishlist table
+   create table if not exists wishlist (
+     id uuid default gen_random_uuid() primary key,
+     user_id uuid references auth.users(id) on delete cascade not null,
+     item_data_json jsonb not null,
+     created_at timestamptz default now()
+   );
+   alter table wishlist enable row level security;
+   create policy "Users can manage own wishlist" on wishlist
+     for all using (auth.uid() = user_id);
+
+   -- Profiles table
+   create table if not exists profiles (
+     user_id uuid primary key references auth.users(id) on delete cascade,
+     display_name text not null,
+     username text unique not null,
+     avatar_url text,
+     bio text
+   );
+   alter table profiles enable row level security;
+   create policy "Users can read own profile" on profiles
+     for select using (auth.uid() = user_id);
+   create policy "Users can upsert own profile" on profiles
+     for all using (auth.uid() = user_id);
+   ```
+
+5. **Create an `avatars` storage bucket**
+
+   In your Supabase dashboard, go to **Storage** → **New bucket** → name it `avatars` and set it to **Public**.
+
+6. **Start the app**
 
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+   Then open in:
+   - Expo Go on your phone (scan the QR code)
+   - iOS Simulator (`i`)
+   - Android Emulator (`a`)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Project structure
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
 ```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+app/
+  (tabs)/          Tab screens (Explore, Search/Camera, Learn, Account)
+  auth/            Login, signup, forgot password
+  onboarding/      First-launch onboarding flow
+  explore/[id]     Explore collection detail
+  learn/[slug]     Learn article detail
+  results          Scan/URL analysis results
+  edit-profile     Edit profile screen
+constants/         Theme (colors, fonts, spacing)
+hooks/             Custom hooks (scan history)
+lib/               Supabase client, scan context, types
+```

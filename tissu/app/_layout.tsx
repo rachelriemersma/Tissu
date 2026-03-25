@@ -61,6 +61,7 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="auth" />
           <Stack.Screen name="results" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="edit-profile" options={{ animation: 'slide_from_bottom' }} />
           <Stack.Screen name="learn/[slug]" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="explore/[id]" options={{ animation: 'slide_from_right' }} />
         </Stack>

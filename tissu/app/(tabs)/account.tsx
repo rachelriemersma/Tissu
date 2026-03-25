@@ -8,12 +8,12 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
-import { router } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useState, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
-import { supabase, WishlistItem } from '@/lib/supabase';
+import { supabase, WishlistItem, Profile } from '@/lib/supabase';
 import { useScanHistory } from '@/hooks/use-scan-history';
 import { useScan } from '@/lib/scan-context';
 import type { User } from '@supabase/supabase-js';
@@ -26,14 +26,32 @@ type AccountTab = 'HISTORY' | 'WISHLIST';
 export default function AccountScreen() {
   const [activeTab, setActiveTab] = useState<AccountTab>('HISTORY');
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
-  const { history } = useScanHistory();
+  const { history, fetchHistory } = useScanHistory();
   const { setCurrentResult } = useScan();
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    fetchWishlist();
-  }, []);
+  // Refresh data every time the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadUser();
+      fetchWishlist();
+      fetchHistory();
+    }, [])
+  );
+
+  async function loadUser() {
+    const { data } = await supabase.auth.getUser();
+    setUser(data.user);
+    if (data.user) {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', data.user.id)
+        .single();
+      if (profileData) setProfile(profileData as Profile);
+    }
+  }
 
   async function fetchWishlist() {
     const { data: userData } = await supabase.auth.getUser();
@@ -60,7 +78,11 @@ export default function AccountScreen() {
     ]);
   }
 
-  const initials = user?.email?.slice(0, 2).toUpperCase() ?? '??';
+  const displayName = profile?.display_name || user?.user_metadata?.name;
+  const avatarUrl = profile?.avatar_url;
+  const initials = displayName
+    ? displayName.slice(0, 2).toUpperCase()
+    : user?.email?.slice(0, 2).toUpperCase() ?? '??';
 
   function formatDate(dateString: string) {
     const d = new Date(dateString);
@@ -72,13 +94,30 @@ export default function AccountScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile */}
         <View style={styles.profileSection}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
-          {user?.user_metadata?.name && (
-            <Text style={styles.name}>{user.user_metadata.name}</Text>
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+          )}
+          {displayName && (
+            <Text style={styles.name}>{displayName}</Text>
+          )}
+          {profile?.username && (
+            <Text style={styles.username}>@{profile.username}</Text>
           )}
           <Text style={styles.email}>{user?.email ?? ''}</Text>
+          {profile?.bio ? (
+            <Text style={styles.bio}>{profile.bio}</Text>
+          ) : null}
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => router.push('/edit-profile')}
+          >
+            <Feather name="edit-2" size={14} color={Colors.textSecondary} />
+            <Text style={styles.editBtnText}>Edit Profile</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Tabs */}
@@ -202,10 +241,12 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
+    marginBottom: Spacing.md,
+  },
+  avatarPlaceholder: {
     backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.md,
   },
   avatarText: {
     fontFamily: FontFamily.sansMedium,
@@ -217,12 +258,44 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.serifBold,
     fontSize: FontSize.xl,
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: 2,
+  },
+  username: {
+    fontFamily: FontFamily.sans,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    marginBottom: 2,
   },
   email: {
     fontFamily: FontFamily.sans,
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
+  },
+  bio: {
+    fontFamily: FontFamily.sans,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    lineHeight: 20,
+  },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 20,
+  },
+  editBtnText: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+    letterSpacing: 1,
   },
   tabRow: {
     flexDirection: 'row',

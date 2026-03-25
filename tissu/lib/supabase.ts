@@ -51,6 +51,14 @@ export interface ExploreItem {
   link: string;
 }
 
+export interface Profile {
+  user_id: string;
+  display_name: string;
+  username: string;
+  avatar_url?: string;
+  bio?: string;
+}
+
 export interface ExploreEdit {
   id: string;
   title: string;

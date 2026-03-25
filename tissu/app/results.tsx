@@ -5,12 +5,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
-  Pressable,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { useScan } from '@/lib/scan-context';
 import { supabase } from '@/lib/supabase';
@@ -19,46 +19,122 @@ import { useScanHistory } from '@/hooks/use-scan-history';
 export default function ResultsScreen() {
   const { currentResult, currentType } = useScan();
   const [hearted, setHearted] = useState(false);
+  const [wishlistId, setWishlistId] = useState<string | null>(null);
   const [additionalOpen, setAdditionalOpen] = useState(false);
   const { saveScan } = useScanHistory();
+  const savedRef = useRef(false);
 
   useEffect(() => {
-    if (currentResult && currentType) {
-      // Save scan to history
+    if (currentResult && currentType && !savedRef.current) {
+      savedRef.current = true;
       saveToHistory();
+      checkWishlistState();
     }
   }, []);
 
   async function saveToHistory() {
-    const { data: user } = await supabase.auth.getUser();
-    if (!user.user || !currentResult || !currentType) return;
-    await saveScan({
-      user_id: user.user.id,
-      type: currentType,
-      result_json: currentResult,
-    });
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) {
+        console.error('[results] Cannot save scan: no authenticated user');
+        return;
+      }
+      if (!currentResult || !currentType) return;
+
+      const success = await saveScan({
+        user_id: userData.user.id,
+        type: currentType,
+        result_json: currentResult,
+      });
+      if (!success) {
+        console.error('[results] saveScan returned false');
+      }
+    } catch (e: any) {
+      console.error('[results] saveToHistory error:', e?.message ?? e);
+    }
+  }
+
+  async function checkWishlistState() {
+    try {
+      if (!currentResult) return;
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return;
+
+      // Check if this item is already in wishlist by matching product name or fiber blend
+      const { data } = await supabase
+        .from('wishlist')
+        .select('id, item_data_json')
+        .eq('user_id', userData.user.id);
+
+      if (data) {
+        const matchName = currentResult.productName ?? 'Label scan';
+        const existing = data.find((row: any) => {
+          const d = row.item_data_json;
+          return d?.name === matchName && d?.brand === (currentResult.brand ?? '');
+        });
+        if (existing) {
+          setHearted(true);
+          setWishlistId(existing.id);
+        }
+      }
+    } catch (e: any) {
+      console.error('[results] checkWishlistState error:', e?.message ?? e);
+    }
   }
 
   async function handleHeart() {
     if (!currentResult) return;
-    const { data: user } = await supabase.auth.getUser();
-    if (!user.user) return;
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      Alert.alert('Sign in required', 'Please sign in to save items to your wishlist.');
+      return;
+    }
 
-    if (hearted) {
-      setHearted(false);
-    } else {
-      await supabase.from('wishlist').insert([{
-        user_id: user.user.id,
-        item_data_json: {
+    try {
+      if (hearted && wishlistId) {
+        // Remove from wishlist
+        const { error } = await supabase
+          .from('wishlist')
+          .delete()
+          .eq('id', wishlistId);
+
+        if (error) {
+          console.error('[results] Failed to remove from wishlist:', error.message);
+          Alert.alert('Error', 'Could not remove from wishlist.');
+          return;
+        }
+        setHearted(false);
+        setWishlistId(null);
+      } else {
+        // Add to wishlist
+        const itemData = {
           id: Date.now().toString(),
           image: currentResult.imageUrl ?? '',
           brand: currentResult.brand ?? '',
           name: currentResult.productName ?? 'Label scan',
           price: currentResult.price ?? '',
           link: '',
-        },
-      }]);
-      setHearted(true);
+        };
+
+        const { data, error } = await supabase
+          .from('wishlist')
+          .insert([{
+            user_id: userData.user.id,
+            item_data_json: itemData,
+          }])
+          .select('id')
+          .single();
+
+        if (error) {
+          console.error('[results] Failed to add to wishlist:', error.message);
+          Alert.alert('Error', 'Could not save to wishlist.');
+          return;
+        }
+        setHearted(true);
+        setWishlistId(data.id);
+      }
+    } catch (e: any) {
+      console.error('[results] handleHeart error:', e?.message ?? e);
     }
   }
 
